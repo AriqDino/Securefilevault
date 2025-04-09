@@ -44,6 +44,8 @@ from models import User, FileUpload
 from utils.auth import verify_firebase_token
 from utils.file_handler import allowed_file, get_unique_filename
 from utils.security import generate_csrf_token, validate_csrf_token, get_secure_headers
+from utils.virus_scan import VirusTotalScanner
+import json
 
 # Create database tables
 with app.app_context():
@@ -127,7 +129,7 @@ def logout():
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    """Handle file uploads for authenticated users"""
+    """Handle file uploads for authenticated users with VirusTotal scanning"""
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
@@ -154,10 +156,10 @@ def upload_file():
         file_path = os.path.join(config.UPLOAD_FOLDER, filename)
         
         try:
-            # Save the file
+            # Save the file temporarily
             file.save(file_path)
             
-            # Create file record in database
+            # Create file record in database with pending scan status
             file_upload = FileUpload(
                 filename=filename,
                 original_filename=original_filename,
@@ -165,19 +167,67 @@ def upload_file():
                 file_size=os.path.getsize(file_path),
                 file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
                 description=description,
-                user_id=session['user_id']
+                user_id=session['user_id'],
+                is_scanned=False,
+                is_safe=None
             )
             
+            # Add file to database to get an ID
             db.session.add(file_upload)
+            db.session.commit()
+            
+            # Initialize VirusTotal scanner
+            scanner = VirusTotalScanner()
+            
+            # Scan the file
+            logger.info(f"Scanning file: {original_filename}")
+            is_safe, scan_results = scanner.scan_file(file_path)
+            
+            # Update file record with scan results
+            file_upload.is_scanned = True
+            file_upload.is_safe = is_safe
+            file_upload.scan_date = datetime.datetime.utcnow()
+            file_upload.scan_result = json.dumps(scan_results)
+            
+            # If file is malicious, delete it
+            if not is_safe:
+                logger.warning(f"Malicious file detected: {original_filename}")
+                
+                # Remove the file from the filesystem
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                
+                # Update file record to mark as deleted
+                file_upload.file_path = None
+                
+                db.session.commit()
+                
+                return jsonify({
+                    'success': False,
+                    'error': 'Malicious file detected',
+                    'scan_results': scan_results,
+                    'file': file_upload.to_dict()
+                }), 403
+            
+            # File is safe, commit the changes
             db.session.commit()
             
             return jsonify({
                 'success': True,
-                'file': file_upload.to_dict()
+                'file': file_upload.to_dict(),
+                'scan_results': scan_results
             })
         
         except Exception as e:
-            logger.error(f"File upload error: {str(e)}")
+            logger.exception(f"File upload error: {str(e)}")
+            
+            # Clean up the file if it exists
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+            
             return jsonify({'error': 'File upload failed', 'details': str(e)}), 500
     
     return jsonify({'error': 'File type not allowed'}), 400
@@ -239,6 +289,14 @@ def download_file(file_id):
         # Check if user owns this file
         if file.user_id != session['user_id']:
             return jsonify({'error': 'Access denied'}), 403
+            
+        # Check if file was detected as malicious or was deleted
+        if file.is_safe is False or file.file_path is None:
+            return jsonify({'error': 'This file was detected as malicious and cannot be downloaded'}), 403
+            
+        # Check if file exists on disk
+        if not os.path.isfile(file.file_path):
+            return jsonify({'error': 'File not found on server'}), 404
         
         return send_from_directory(
             os.path.dirname(file.file_path),
@@ -273,8 +331,12 @@ def delete_file(file_id):
         if file.user_id != session['user_id']:
             return jsonify({'error': 'Access denied'}), 403
         
-        # Delete file from filesystem
-        os.remove(file.file_path)
+        # Delete file from filesystem if it exists
+        if file.file_path and os.path.isfile(file.file_path):
+            try:
+                os.remove(file.file_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete file from filesystem: {str(e)}")
         
         # Delete file record from database
         db.session.delete(file)

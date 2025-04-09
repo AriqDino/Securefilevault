@@ -64,6 +64,32 @@ export class DashboardService {
   }
   
   /**
+   * Get detailed information about a file
+   * @param {number} fileId File ID
+   * @returns {Promise<Object>} File information
+   */
+  async getFileDetails(fileId) {
+    try {
+      const response = await fetch(`/api/files/${fileId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch file details');
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Unknown error');
+      }
+      
+      return data.file;
+    } catch (error) {
+      console.error('Error fetching file details:', error);
+      throw error;
+    }
+  }
+  
+  /**
    * Format file size for display
    * @param {number} bytes File size in bytes
    * @returns {string} Formatted file size
@@ -107,5 +133,31 @@ export class DashboardService {
     
     const extension = filename.split('.').pop().toLowerCase();
     return fileIcons[extension] || fileIcons.default;
+  }
+  
+  /**
+   * Get scan status badge HTML
+   * @param {Object} file File object
+   * @returns {string} Badge HTML
+   */
+  getScanStatusBadge(file) {
+    if (!file.is_scanned) {
+      return '<span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i> Pending</span>';
+    } else if (file.is_safe) {
+      return '<span class="badge bg-success"><i class="fas fa-shield-alt me-1"></i> Clean</span>';
+    } else if (file.is_safe === false) { // Explicitly false
+      return '<span class="badge bg-danger"><i class="fas fa-virus me-1"></i> Malicious</span>';
+    } else {
+      return '<span class="badge bg-secondary"><i class="fas fa-question-circle me-1"></i> Unknown</span>';
+    }
+  }
+  
+  /**
+   * Check if file can be downloaded (is safe)
+   * @param {Object} file File object
+   * @returns {boolean} True if file can be downloaded
+   */
+  canDownload(file) {
+    return file.is_safe !== false && file.file_path !== null;
   }
 }

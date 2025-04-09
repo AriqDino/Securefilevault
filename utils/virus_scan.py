@@ -1,0 +1,216 @@
+import os
+import hashlib
+import requests
+import time
+import logging
+from typing import Dict, Any, Tuple, Optional
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class VirusTotalScanner:
+    """
+    VirusTotal API client for scanning files
+    """
+    
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialize VirusTotal scanner with API key
+        
+        Args:
+            api_key: VirusTotal API key (defaults to environment variable)
+        """
+        self.api_key = api_key or os.environ.get('VIRUSTOTAL_API_KEY', '')
+        if not self.api_key:
+            logger.warning("VirusTotal API key not provided, scanning will be disabled")
+        
+        self.base_url = "https://www.virustotal.com/api/v3"
+        self.headers = {
+            "x-apikey": self.api_key,
+            "accept": "application/json"
+        }
+    
+    def scan_file(self, file_path: str, max_retries: int = 3, wait_time: int = 5) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Scan a file using VirusTotal API
+        
+        Args:
+            file_path: Path to the file to scan
+            max_retries: Maximum number of retries for checking scan results
+            wait_time: Time to wait between retries in seconds
+            
+        Returns:
+            Tuple of (is_safe, scan_results)
+            is_safe: True if file is safe, False if malicious or error occurred
+            scan_results: Full scan results or error information
+        """
+        if not self.api_key:
+            logger.warning("VirusTotal API key not available, skipping scan")
+            return True, {"status": "skipped", "message": "API key not available"}
+
+        try:
+            # Check if file exists
+            if not os.path.isfile(file_path):
+                logger.error(f"File not found: {file_path}")
+                return False, {"status": "error", "message": "File not found"}
+                
+            # Calculate file hash (SHA-256)
+            file_hash = self._calculate_file_hash(file_path)
+            
+            # First, check if file has already been analyzed by hash
+            existing_analysis = self._get_file_report(file_hash)
+            
+            # If file exists in VirusTotal database
+            if existing_analysis and "data" in existing_analysis:
+                return self._process_analysis_result(existing_analysis)
+            
+            # If not, upload file for scanning
+            logger.info(f"Uploading file for scanning: {os.path.basename(file_path)}")
+            upload_result = self._upload_file(file_path)
+            
+            if not upload_result or "data" not in upload_result:
+                logger.error("Failed to upload file for scanning")
+                return False, {"status": "error", "message": "Failed to upload file for scanning"}
+            
+            # Get analysis ID from upload response
+            analysis_id = upload_result.get("data", {}).get("id")
+            
+            if not analysis_id:
+                logger.error("No analysis ID received from VirusTotal")
+                return False, {"status": "error", "message": "No analysis ID received"}
+            
+            # Poll for scan results
+            for attempt in range(max_retries):
+                logger.info(f"Checking scan results (attempt {attempt+1}/{max_retries})")
+                
+                # Wait before checking results
+                time.sleep(wait_time)
+                
+                # Get analysis results
+                analysis_result = self._get_analysis(analysis_id)
+                
+                if not analysis_result:
+                    continue
+                
+                status = analysis_result.get("data", {}).get("attributes", {}).get("status")
+                
+                # If analysis is completed
+                if status == "completed":
+                    return self._process_analysis_result(analysis_result)
+            
+            # If max retries reached and analysis not completed
+            logger.warning("Scan taking too long, consider it suspicious")
+            return False, {"status": "timeout", "message": "Scan taking too long, consider it suspicious"}
+            
+        except Exception as e:
+            logger.exception(f"Error scanning file: {e}")
+            return False, {"status": "error", "message": str(e)}
+    
+    def _calculate_file_hash(self, file_path: str) -> str:
+        """Calculate SHA-256 hash of a file"""
+        sha256_hash = hashlib.sha256()
+        
+        with open(file_path, "rb") as f:
+            # Read file in chunks to handle large files
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+                
+        return sha256_hash.hexdigest()
+    
+    def _get_file_report(self, file_hash: str) -> Optional[Dict[str, Any]]:
+        """Get existing report for a file by its hash"""
+        try:
+            url = f"{self.base_url}/files/{file_hash}"
+            response = requests.get(url, headers=self.headers)
+            
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                return None  # File not previously scanned
+            else:
+                logger.error(f"Error getting file report: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.exception(f"Error getting file report: {e}")
+            return None
+    
+    def _upload_file(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """Upload a file for scanning"""
+        try:
+            url = f"{self.base_url}/files"
+            
+            with open(file_path, "rb") as file:
+                files = {"file": (os.path.basename(file_path), file)}
+                response = requests.post(url, headers=self.headers, files=files)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"Error uploading file: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.exception(f"Error uploading file: {e}")
+            return None
+    
+    def _get_analysis(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Get analysis results for a specific analysis ID"""
+        try:
+            url = f"{self.base_url}/analyses/{analysis_id}"
+            response = requests.get(url, headers=self.headers)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"Error getting analysis: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.exception(f"Error getting analysis: {e}")
+            return None
+    
+    def _process_analysis_result(self, result: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        """Process analysis results to determine if file is safe"""
+        try:
+            attributes = result.get("data", {}).get("attributes", {})
+            
+            # For file report
+            if "last_analysis_stats" in attributes:
+                stats = attributes["last_analysis_stats"]
+                malicious = stats.get("malicious", 0)
+                suspicious = stats.get("suspicious", 0)
+                
+                # Consider file malicious if any engine reported it as malicious/suspicious
+                is_safe = malicious == 0 and suspicious == 0
+                
+                return is_safe, {
+                    "status": "completed",
+                    "is_safe": is_safe,
+                    "malicious_detections": malicious,
+                    "suspicious_detections": suspicious,
+                    "total_engines": sum(stats.values()),
+                    "full_report": attributes
+                }
+            
+            # For analysis results
+            stats = attributes.get("stats", {})
+            malicious = stats.get("malicious", 0)
+            suspicious = stats.get("suspicious", 0)
+            
+            # Consider file malicious if any engine reported it as malicious/suspicious
+            is_safe = malicious == 0 and suspicious == 0
+            
+            return is_safe, {
+                "status": "completed",
+                "is_safe": is_safe,
+                "malicious_detections": malicious,
+                "suspicious_detections": suspicious,
+                "total_engines": sum(stats.values()),
+                "full_report": attributes
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error processing analysis result: {e}")
+            return False, {"status": "error", "message": str(e)}

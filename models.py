@@ -26,6 +26,12 @@ class FileUpload(db.Model):
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.String(128), db.ForeignKey('user.id'), nullable=False)
     
+    # Virus scan status fields
+    is_scanned = db.Column(db.Boolean, default=False)
+    is_safe = db.Column(db.Boolean, nullable=True)
+    scan_date = db.Column(db.DateTime, nullable=True)
+    scan_result = db.Column(db.Text, nullable=True)  # JSON string with detailed scan results
+    
     def __repr__(self):
         return f'<FileUpload {self.original_filename}>'
     
@@ -35,9 +41,26 @@ class FileUpload(db.Model):
             'id': self.id,
             'filename': self.filename,
             'original_filename': self.original_filename,
+            'file_path': self.file_path,
             'file_size': self.file_size,
             'file_type': self.file_type,
             'description': self.description,
             'uploaded_at': self.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'user_id': self.user_id
+            'user_id': self.user_id,
+            'is_scanned': self.is_scanned,
+            'is_safe': self.is_safe,
+            'scan_date': self.scan_date.strftime('%Y-%m-%d %H:%M:%S') if self.scan_date else None,
+            'scan_result': self.scan_result,
+            'scan_status': self._get_scan_status()
         }
+    
+    def _get_scan_status(self):
+        """Helper to get human-readable scan status"""
+        if not self.is_scanned:
+            return "Pending"
+        elif self.is_safe:
+            return "Clean"
+        elif self.is_safe is False:  # Explicitly False, not None
+            return "Malicious"
+        else:
+            return "Unknown"

@@ -102,6 +102,62 @@
         </div>
     </div>
 </div>
+
+<!-- File Details Modal -->
+<div class="modal fade" id="fileDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">File Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6 id="detailsFileName" class="fw-bold mb-3"></h6>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Size</th>
+                                <td id="detailsFileSize"></td>
+                            </tr>
+                            <tr>
+                                <th>Uploaded</th>
+                                <td id="detailsFileDate"></td>
+                            </tr>
+                            <tr>
+                                <th>Description</th>
+                                <td id="detailsFileDesc"></td>
+                            </tr>
+                            <tr>
+                                <th>Scan Status</th>
+                                <td id="detailsScanStatus"></td>
+                            </tr>
+                            <tr id="detailsScanDateRow">
+                                <th>Scan Date</th>
+                                <td id="detailsScanDate"></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i id="detailsFileIcon" class="fas fa-5x mb-3"></i>
+                        <div class="d-grid gap-2">
+                            <a id="detailsDownloadBtn" href="#" class="btn btn-primary">
+                                <i class="fas fa-download me-2"></i>Download
+                            </a>
+                            <button id="detailsDeleteBtn" type="button" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-2"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="detailsScanResult" class="mt-3 d-none">
+                    <h6 class="fw-bold">Scan Results</h6>
+                    <pre class="bg-light p-3 rounded"><code id="detailsScanResultJson"></code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -139,6 +195,24 @@
     function formatDate(dateString) {
         const date = new Date(dateString);
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+    
+    // Get scan status badge HTML
+    function getScanStatusBadge(file) {
+        if (!file.is_scanned) {
+            return '<span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i> Pending</span>';
+        } else if (file.is_safe) {
+            return '<span class="badge bg-success"><i class="fas fa-shield-alt me-1"></i> Clean</span>';
+        } else if (file.is_safe === false) { // Explicitly false
+            return '<span class="badge bg-danger"><i class="fas fa-virus me-1"></i> Malicious</span>';
+        } else {
+            return '<span class="badge bg-secondary"><i class="fas fa-question-circle me-1"></i> Unknown</span>';
+        }
+    }
+    
+    // Check if file can be downloaded (is safe)
+    function canDownload(file) {
+        return file.is_scanned && file.is_safe !== false && file.file_path !== null;
     }
     
     // Get CSRF token
@@ -189,10 +263,11 @@
                             <th>File</th>
                             <th>Size</th>
                             <th>Uploaded</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="file-table-body">
         `;
         
         files.forEach(file => {
@@ -207,9 +282,16 @@
                     <td>${formatFileSize(file.file_size)}</td>
                     <td>${formatDate(file.uploaded_at)}</td>
                     <td>
-                        <a href="/api/files/${file.id}/download" class="btn btn-sm btn-outline-primary me-1">
+                        ${getScanStatusBadge(file)}
+                    </td>
+                    <td>
+                        ${canDownload(file) ? 
+                        `<a href="/api/files/${file.id}/download" class="btn btn-sm btn-outline-primary me-1 download-btn" onclick="event.stopPropagation()">
                             <i class="fas fa-download"></i>
-                        </a>
+                        </a>` : 
+                        `<button type="button" class="btn btn-sm btn-outline-secondary me-1" disabled onclick="event.stopPropagation()">
+                            <i class="fas fa-download"></i>
+                        </button>`}
                         <button type="button" class="btn btn-sm btn-outline-danger delete-btn" data-file-id="${file.id}" data-file-name="${file.original_filename}">
                             <i class="fas fa-trash-alt"></i>
                         </button>
@@ -228,12 +310,112 @@
         
         // Add event listeners to delete buttons
         document.querySelectorAll('.delete-btn').forEach(button => {
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();  // Prevent row click event
                 const fileId = this.getAttribute('data-file-id');
                 const fileName = this.getAttribute('data-file-name');
                 openDeleteModal(fileId, fileName);
             });
         });
+        
+        // Add event listeners to file rows for details view
+        document.querySelectorAll('tr').forEach(row => {
+            if (!row.closest('thead')) {  // Skip header row
+                row.style.cursor = 'pointer';  // Show pointer cursor
+                row.setAttribute('data-file-id', row.querySelector('.delete-btn').getAttribute('data-file-id'));
+                
+                row.addEventListener('click', function() {
+                    const fileId = this.getAttribute('data-file-id');
+                    if (fileId) {
+                        openFileDetails(fileId);
+                    }
+                });
+            }
+        });
+    }
+    
+    // Open file details modal
+    function openFileDetails(fileId) {
+        fetch(`/api/files/${fileId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch file details');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    displayFileDetails(data.file);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching file details:', error);
+                showUploadError(error.message);
+            });
+    }
+    
+    // Display file details in modal
+    function displayFileDetails(file) {
+        const modal = new bootstrap.Modal(document.getElementById('fileDetailsModal'));
+        
+        // Set basic file info
+        document.getElementById('detailsFileName').textContent = file.original_filename;
+        document.getElementById('detailsFileSize').textContent = formatFileSize(file.file_size);
+        document.getElementById('detailsFileDate').textContent = formatDate(file.uploaded_at);
+        document.getElementById('detailsFileDesc').textContent = file.description || 'No description';
+        
+        // Set file icon
+        const iconClass = getFileIconClass(file.original_filename);
+        document.getElementById('detailsFileIcon').className = `fas ${iconClass} fa-5x mb-3`;
+        
+        // Set scan status
+        document.getElementById('detailsScanStatus').innerHTML = getScanStatusBadge(file);
+        
+        // Handle scan date
+        if (file.scan_date) {
+            document.getElementById('detailsScanDate').textContent = formatDate(file.scan_date);
+            document.getElementById('detailsScanDateRow').classList.remove('d-none');
+        } else {
+            document.getElementById('detailsScanDateRow').classList.add('d-none');
+        }
+        
+        // Handle scan results
+        if (file.scan_result && file.is_scanned) {
+            try {
+                const scanResult = typeof file.scan_result === 'string' 
+                    ? JSON.parse(file.scan_result) 
+                    : file.scan_result;
+                
+                document.getElementById('detailsScanResultJson').textContent = 
+                    JSON.stringify(scanResult, null, 2);
+                document.getElementById('detailsScanResult').classList.remove('d-none');
+            } catch (e) {
+                document.getElementById('detailsScanResult').classList.add('d-none');
+            }
+        } else {
+            document.getElementById('detailsScanResult').classList.add('d-none');
+        }
+        
+        // Set up download button
+        const downloadBtn = document.getElementById('detailsDownloadBtn');
+        if (canDownload(file)) {
+            downloadBtn.href = `/api/files/${file.id}/download`;
+            downloadBtn.classList.remove('disabled');
+        } else {
+            downloadBtn.href = '#';
+            downloadBtn.classList.add('disabled');
+        }
+        
+        // Set up delete button
+        const deleteBtn = document.getElementById('detailsDeleteBtn');
+        deleteBtn.onclick = function() {
+            modal.hide();
+            openDeleteModal(file.id, file.original_filename);
+        };
+        
+        modal.show();
     }
     
     // Open delete confirmation modal
@@ -331,10 +513,13 @@
                     document.getElementById('uploadForm').reset();
                     
                     // Show success message
-                    showUploadSuccess('File uploaded successfully');
+                    showUploadSuccess('File uploaded successfully. Virus scanning in progress...');
                     
                     // Refresh files list
                     fetchFiles();
+                    
+                    // Set up auto-refresh for scan status
+                    startAutoRefresh();
                 } else {
                     showUploadError(response.error || 'Upload failed');
                 }
@@ -385,9 +570,43 @@
         errorDiv.classList.remove('d-none');
     }
     
+    // Auto-refresh timer
+    let autoRefreshTimer = null;
+    
+    // Start auto-refresh to update scan status
+    function startAutoRefresh() {
+        // Clear any existing timer
+        if (autoRefreshTimer) {
+            clearInterval(autoRefreshTimer);
+        }
+        
+        // Refresh every 5 seconds for 2 minutes (24 times)
+        let refreshCount = 0;
+        autoRefreshTimer = setInterval(() => {
+            refreshCount++;
+            fetchFiles();
+            
+            // Stop after 2 minutes
+            if (refreshCount >= 24) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+            }
+        }, 5000);
+    }
+    
     // Load files when page loads
     document.addEventListener('DOMContentLoaded', function() {
         fetchFiles();
+        
+        // Check for any pending scans and start auto-refresh if needed
+        fetch('/api/files')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.files.some(file => !file.is_scanned)) {
+                    startAutoRefresh();
+                }
+            })
+            .catch(error => console.error('Error checking for pending scans:', error));
     });
 </script>
 {% endblock %}
