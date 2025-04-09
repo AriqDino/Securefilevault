@@ -26,11 +26,11 @@ class FileUpload(db.Model):
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.String(128), db.ForeignKey('user.id'), nullable=False)
     
-    # Virus scan status fields
-    is_scanned = db.Column(db.Boolean, default=False)
-    is_safe = db.Column(db.Boolean, nullable=True)
-    scan_date = db.Column(db.DateTime, nullable=True)
-    scan_result = db.Column(db.Text, nullable=True)  # JSON string with detailed scan results
+    # Virus scan status fields - currently disabled
+    # is_scanned = db.Column(db.Boolean, default=False)
+    # is_safe = db.Column(db.Boolean, nullable=True)
+    # scan_date = db.Column(db.DateTime, nullable=True)
+    # scan_result = db.Column(db.Text, nullable=True)  # JSON string with detailed scan results
     
     def __repr__(self):
         return f'<FileUpload {self.original_filename}>'

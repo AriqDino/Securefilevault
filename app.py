@@ -160,31 +160,16 @@ def upload_file():
             file.save(file_path)
             
             # Create file record in database
-            try:
-                # Try with scan fields first
-                file_upload = FileUpload(
-                    filename=filename,
-                    original_filename=original_filename,
-                    file_path=file_path,
-                    file_size=os.path.getsize(file_path),
-                    file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
-                    description=description,
-                    user_id=session['user_id'],
-                    is_scanned=False,
-                    is_safe=None
-                )
-            except Exception as e:
-                # If that fails, create without scan fields
-                logger.warning(f"Creating file without scan fields: {str(e)}")
-                file_upload = FileUpload(
-                    filename=filename,
-                    original_filename=original_filename,
-                    file_path=file_path,
-                    file_size=os.path.getsize(file_path),
-                    file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
-                    description=description,
-                    user_id=session['user_id']
-                )
+            # Create file with only basic fields, no scan fields
+            file_upload = FileUpload(
+                filename=filename,
+                original_filename=original_filename,
+                file_path=file_path,
+                file_size=os.path.getsize(file_path),
+                file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
+                description=description,
+                user_id=session['user_id']
+            )
             
             # Add file to database to get an ID
             db.session.add(file_upload)
