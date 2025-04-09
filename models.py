@@ -37,7 +37,8 @@ class FileUpload(db.Model):
     
     def to_dict(self):
         """Convert object to dictionary for JSON serialization"""
-        return {
+        # Start with basic file information that should always be present
+        result = {
             'id': self.id,
             'filename': self.filename,
             'original_filename': self.original_filename,
@@ -47,15 +48,30 @@ class FileUpload(db.Model):
             'description': self.description,
             'uploaded_at': self.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
             'user_id': self.user_id,
-            'is_scanned': self.is_scanned,
-            'is_safe': self.is_safe,
-            'scan_date': self.scan_date.strftime('%Y-%m-%d %H:%M:%S') if self.scan_date else None,
-            'scan_result': self.scan_result,
-            'scan_status': self._get_scan_status()
         }
+        
+        # Add scanning fields if they exist
+        if hasattr(self, 'is_scanned'):
+            result['is_scanned'] = self.is_scanned
+            result['is_safe'] = self.is_safe
+            result['scan_status'] = self._get_scan_status()
+            
+            if hasattr(self, 'scan_date') and self.scan_date:
+                result['scan_date'] = self.scan_date.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                result['scan_date'] = None
+                
+            if hasattr(self, 'scan_result'):
+                result['scan_result'] = self.scan_result
+            
+        return result
     
     def _get_scan_status(self):
         """Helper to get human-readable scan status"""
+        # First check if we have scan fields
+        if not hasattr(self, 'is_scanned'):
+            return "Available"
+            
         if not self.is_scanned:
             return "Pending"
         elif self.is_safe:

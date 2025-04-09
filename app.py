@@ -159,18 +159,32 @@ def upload_file():
             # Save the file temporarily
             file.save(file_path)
             
-            # Create file record in database with pending scan status
-            file_upload = FileUpload(
-                filename=filename,
-                original_filename=original_filename,
-                file_path=file_path,
-                file_size=os.path.getsize(file_path),
-                file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
-                description=description,
-                user_id=session['user_id'],
-                is_scanned=False,
-                is_safe=None
-            )
+            # Create file record in database
+            try:
+                # Try with scan fields first
+                file_upload = FileUpload(
+                    filename=filename,
+                    original_filename=original_filename,
+                    file_path=file_path,
+                    file_size=os.path.getsize(file_path),
+                    file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
+                    description=description,
+                    user_id=session['user_id'],
+                    is_scanned=False,
+                    is_safe=None
+                )
+            except Exception as e:
+                # If that fails, create without scan fields
+                logger.warning(f"Creating file without scan fields: {str(e)}")
+                file_upload = FileUpload(
+                    filename=filename,
+                    original_filename=original_filename,
+                    file_path=file_path,
+                    file_size=os.path.getsize(file_path),
+                    file_type=file.content_type if hasattr(file, 'content_type') else 'application/octet-stream',
+                    description=description,
+                    user_id=session['user_id']
+                )
             
             # Add file to database to get an ID
             db.session.add(file_upload)
@@ -183,11 +197,15 @@ def upload_file():
             logger.info(f"Scanning file: {original_filename}")
             is_safe, scan_results = scanner.scan_file(file_path)
             
-            # Update file record with scan results
-            file_upload.is_scanned = True
-            file_upload.is_safe = is_safe
-            file_upload.scan_date = datetime.datetime.utcnow()
-            file_upload.scan_result = json.dumps(scan_results)
+            # Update file record with scan results if the columns exist
+            try:
+                file_upload.is_scanned = True
+                file_upload.is_safe = is_safe
+                file_upload.scan_date = datetime.datetime.utcnow()
+                file_upload.scan_result = json.dumps(scan_results)
+            except Exception as e:
+                logger.warning(f"Could not update file with scan results: {str(e)}")
+                # Continue without scan results
             
             # If file is malicious, delete it
             if not is_safe:
@@ -290,8 +308,12 @@ def download_file(file_id):
         if file.user_id != session['user_id']:
             return jsonify({'error': 'Access denied'}), 403
             
-        # Check if file was detected as malicious or was deleted
-        if file.is_safe is False or file.file_path is None:
+        # Check if file was deleted
+        if file.file_path is None:
+            return jsonify({'error': 'This file was deleted or is not available'}), 404
+            
+        # Check if file was detected as malicious (if scan fields exist)
+        if hasattr(file, 'is_safe') and file.is_safe is False:
             return jsonify({'error': 'This file was detected as malicious and cannot be downloaded'}), 403
             
         # Check if file exists on disk

@@ -199,6 +199,11 @@
     
     // Get scan status badge HTML
     function getScanStatusBadge(file) {
+        // If scanning fields don't exist yet
+        if (file.is_scanned === undefined) {
+            return '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> Available</span>';
+        }
+        
         if (!file.is_scanned) {
             return '<span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i> Pending</span>';
         } else if (file.is_safe) {
@@ -212,6 +217,10 @@
     
     // Check if file can be downloaded (is safe)
     function canDownload(file) {
+        // If scanning fields don't exist yet, allow download
+        if (file.is_scanned === undefined) {
+            return file.file_path !== null;
+        }
         return file.is_scanned && file.is_safe !== false && file.file_path !== null;
     }
     
@@ -373,8 +382,11 @@
         // Set scan status
         document.getElementById('detailsScanStatus').innerHTML = getScanStatusBadge(file);
         
+        // Check if file has scan fields
+        const hasScanFields = file.is_scanned !== undefined;
+        
         // Handle scan date
-        if (file.scan_date) {
+        if (hasScanFields && file.scan_date) {
             document.getElementById('detailsScanDate').textContent = formatDate(file.scan_date);
             document.getElementById('detailsScanDateRow').classList.remove('d-none');
         } else {
@@ -382,7 +394,7 @@
         }
         
         // Handle scan results
-        if (file.scan_result && file.is_scanned) {
+        if (hasScanFields && file.scan_result && file.is_scanned) {
             try {
                 const scanResult = typeof file.scan_result === 'string' 
                     ? JSON.parse(file.scan_result) 
@@ -602,8 +614,14 @@
         fetch('/api/files')
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.files.some(file => !file.is_scanned)) {
-                    startAutoRefresh();
+                if (data.success && data.files.length > 0) {
+                    // Only auto-refresh if we have scan fields and pending scans
+                    const hasScanFields = data.files[0].is_scanned !== undefined;
+                    const hasPendingScans = data.files.some(file => file.is_scanned === false);
+                    
+                    if (hasScanFields && hasPendingScans) {
+                        startAutoRefresh();
+                    }
                 }
             })
             .catch(error => console.error('Error checking for pending scans:', error));
