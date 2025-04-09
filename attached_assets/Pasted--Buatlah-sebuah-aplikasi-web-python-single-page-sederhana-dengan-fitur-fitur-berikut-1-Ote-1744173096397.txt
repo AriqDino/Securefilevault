@@ -1,0 +1,35 @@
+
+
+Buatlah sebuah aplikasi web python single-page sederhana dengan fitur-fitur berikut:
+
+1. **Otentikasi dengan Firebase:**
+   - Gunakan Firebase Authentication (fitur gratis) untuk menangani proses login dan registrasi.
+   - Validasi input pengguna (email, password) di sisi klien untuk mencegah data yang tidak valid.
+   - Seluruh komunikasi antara aplikasi dengan Firebase Authentication harus dilakukan melalui HTTPS.
+   - Pastikan untuk menyimpan token otentikasi secara aman dan tidak menuliskannya secara hard-coded di dalam kode sumber.
+
+2. **File Upload dan Pengelolaan Data dengan SQLAlchemy:**
+   - Sediakan fitur upload file yang memungkinkan pengguna mengunggah file (misalnya, gambar atau dokumen).
+   - Simpan file yang diupload pada direktori server atau gunakan solusi penyimpanan lokal yang aman (tanpa memanfaatkan Firebase Storage).
+   - Gunakan SQLAlchemy untuk mengelola penyimpanan data di database (misalnya SQLite untuk pengembangan atau PostgreSQL untuk produksi).
+   - Rancang skema database untuk menyimpan metadata file, seperti nama file, URL atau path file, timestamp upload, dan relasi ke user ID (dari Firebase).
+   - Terapkan mekanisme ORM dari SQLAlchemy untuk mencegah SQL Injection dan query yang tidak diinginkan.
+
+3. **Implementasi Keamanan:**
+   - Terapkan HTTPS untuk semua komunikasi antara klien dan server.
+   - Konfigurasikan header keamanan (seperti Content-Security-Policy, X-Content-Type-Options) di server.
+   - Lakukan validasi dan sanitasi semua data input, baik untuk otentikasi maupun upload file, guna memitigasi serangan Cross-Site Scripting (XSS) dan Cross-Site Request Forgery (CSRF).
+   - Pastikan akses file upload dan data terkait hanya dapat diakses oleh pengguna yang telah terotentikasi dan berhak.
+
+4. **Struktur Aplikasi:**
+   - **Halaman Login/Register:** Menampilkan form registrasi dan login, yang mengintegrasikan Firebase Authentication.
+   - **Dashboard Pengguna:** Setelah login, pengguna diarahkan ke dashboard yang menyediakan:
+     - Formulir upload file dengan validasi input (ukuran, tipe file).
+     - Tampilan daftar file beserta metadata yang diambil dari database melalui SQLAlchemy.
+   - **Notifikasi dan Error Handling:** Tampilkan pesan notifikasi dan error secara jelas kepada pengguna tanpa mengungkap informasi sensitif.
+
+5. **Deployment:**
+  
+   - Pastikan seluruh konfigurasi keamanan dan enkripsi telah diterapkan pada lingkungan produksi.
+
+Gunakan prompt ini sebagai pedoman untuk membangun aplikasi dengan framework pilihan (misalnya Flask, Django, atau framework lain yang mendukung integrasi Firebase untuk otentikasi dan SQLAlchemy untuk manajemen database). Pastikan penerapan best practice keamanan di setiap tahap pengembangan untuk melindungi data pengguna dan integritas aplikasi.
