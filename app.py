@@ -200,16 +200,14 @@ def upload_file():
                 if os.path.exists(file_path):
                     os.remove(file_path)
                 
-                # Update file record to mark as deleted
-                file_upload.file_path = None
-                
+                # Delete the file from database instead of setting file_path = None
+                db.session.delete(file_upload)
                 db.session.commit()
                 
                 return jsonify({
                     'success': False,
                     'error': 'Malicious file detected',
-                    'scan_results': scan_results,
-                    'file': file_upload.to_dict()
+                    'scan_results': scan_results
                 }), 403
             
             # File is safe, commit the changes

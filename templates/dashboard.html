@@ -232,21 +232,36 @@
         fetch('/api/files')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Failed to fetch files');
+                    throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
                 if (data.success) {
-                    displayFiles(data.files);
+                    if (Array.isArray(data.files)) {
+                        displayFiles(data.files);
+                    } else {
+                        throw new Error('Invalid response format: files is not an array');
+                    }
                 } else {
                     throw new Error(data.error || 'Unknown error');
                 }
             })
             .catch(error => {
                 console.error('Error fetching files:', error);
-                document.getElementById('filesError').textContent = error.message;
-                document.getElementById('filesError').classList.remove('d-none');
+                const errorDiv = document.getElementById('filesError');
+                if (errorDiv) {
+                    errorDiv.textContent = error.message;
+                    errorDiv.classList.remove('d-none');
+                } else {
+                    // If error div doesn't exist, create one
+                    const filesContainer = document.querySelector('#filesList').parentNode;
+                    const errorElement = document.createElement('div');
+                    errorElement.id = 'filesError';
+                    errorElement.className = 'alert alert-danger mt-3';
+                    errorElement.textContent = error.message;
+                    filesContainer.insertBefore(errorElement, document.querySelector('#filesList'));
+                }
             });
     }
     
@@ -330,15 +345,21 @@
         // Add event listeners to file rows for details view
         document.querySelectorAll('tr').forEach(row => {
             if (!row.closest('thead')) {  // Skip header row
-                row.style.cursor = 'pointer';  // Show pointer cursor
-                row.setAttribute('data-file-id', row.querySelector('.delete-btn').getAttribute('data-file-id'));
-                
-                row.addEventListener('click', function() {
-                    const fileId = this.getAttribute('data-file-id');
+                const deleteBtn = row.querySelector('.delete-btn');
+                if (deleteBtn) { // Make sure the delete button exists
+                    const fileId = deleteBtn.getAttribute('data-file-id');
                     if (fileId) {
-                        openFileDetails(fileId);
+                        row.style.cursor = 'pointer';  // Show pointer cursor
+                        row.setAttribute('data-file-id', fileId);
+                        
+                        row.addEventListener('click', function() {
+                            const rowFileId = this.getAttribute('data-file-id');
+                            if (rowFileId) {
+                                openFileDetails(rowFileId);
+                            }
+                        });
                     }
-                });
+                }
             }
         });
     }
