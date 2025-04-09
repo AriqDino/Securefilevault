@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-6 fw-bold">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </h1>
+        <p class="lead">Welcome, {{ user_email }}</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-upload me-2"></i>Upload File
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select file</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                        <div class="form-text">Max file size: 16MB</div>
+                        <div class="invalid-feedback">Please select a valid file.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description (optional)</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload
+                        </button>
+                    </div>
+                </form>
+
+                <div id="uploadProgress" class="progress mt-3 d-none">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                
+                <div id="uploadSuccess" class="alert alert-success mt-3 d-none"></div>
+                <div id="uploadError" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>My Files
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="filesList">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading your files...</p>
+                    </div>
+                </div>
+                
+                <div id="filesError" class="alert alert-danger mt-3 d-none"></div>
+                
+                <div id="noFiles" class="text-center py-5 d-none">
+                    <i class="fas fa-folder-open fa-3x mb-3 text-muted"></i>
+                    <p class="lead">You don't have any files yet</p>
+                    <p>Upload a file to get started</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this file?</p>
+                <p id="deleteFileName" class="fw-bold"></p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Define file types icons mapping
+    const fileIcons = {
+        'pdf': 'fa-file-pdf',
+        'doc': 'fa-file-word',
+        'docx': 'fa-file-word',
+        'xls': 'fa-file-excel',
+        'xlsx': 'fa-file-excel',
+        'txt': 'fa-file-alt',
+        'jpg': 'fa-file-image',
+        'jpeg': 'fa-file-image',
+        'png': 'fa-file-image',
+        'gif': 'fa-file-image',
+        'default': 'fa-file'
+    };
+
+    // Get file icon class based on file extension
+    function getFileIconClass(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        return fileIcons[extension] || fileIcons.default;
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+        else if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB';
+        else return (bytes / 1073741824).toFixed(2) + ' GB';
+    }
+    
+    // Format date
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+    
+    // Get CSRF token
+    const csrfToken = "{{ csrf_token }}";
+    
+    // Fetch files
+    function fetchFiles() {
+        fetch('/api/files')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch files');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    displayFiles(data.files);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching files:', error);
+                document.getElementById('filesError').textContent = error.message;
+                document.getElementById('filesError').classList.remove('d-none');
+            });
+    }
+    
+    // Display files
+    function displayFiles(files) {
+        const filesList = document.getElementById('filesList');
+        const noFiles = document.getElementById('noFiles');
+        
+        if (files.length === 0) {
+            filesList.innerHTML = '';
+            noFiles.classList.remove('d-none');
+            return;
+        }
+        
+        noFiles.classList.add('d-none');
+        
+        // Create files table
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Size</th>
+                            <th>Uploaded</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        files.forEach(file => {
+            const iconClass = getFileIconClass(file.original_filename);
+            html += `
+                <tr>
+                    <td>
+                        <i class="fas ${iconClass} me-2"></i>
+                        ${file.original_filename}
+                        ${file.description ? `<small class="d-block text-muted">${file.description}</small>` : ''}
+                    </td>
+                    <td>${formatFileSize(file.file_size)}</td>
+                    <td>${formatDate(file.uploaded_at)}</td>
+                    <td>
+                        <a href="/api/files/${file.id}/download" class="btn btn-sm btn-outline-primary me-1">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-danger delete-btn" data-file-id="${file.id}" data-file-name="${file.original_filename}">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        filesList.innerHTML = html;
+        
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const fileId = this.getAttribute('data-file-id');
+                const fileName = this.getAttribute('data-file-name');
+                openDeleteModal(fileId, fileName);
+            });
+        });
+    }
+    
+    // Open delete confirmation modal
+    function openDeleteModal(fileId, fileName) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('deleteFileName').textContent = fileName;
+        
+        // Set up the confirm delete button
+        const confirmButton = document.getElementById('confirmDelete');
+        confirmButton.onclick = function() {
+            deleteFile(fileId);
+            modal.hide();
+        };
+        
+        modal.show();
+    }
+    
+    // Delete file
+    function deleteFile(fileId) {
+        fetch(`/api/files/${fileId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ csrf_token: csrfToken })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete file');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Refresh files list
+                fetchFiles();
+                showUploadSuccess('File deleted successfully');
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting file:', error);
+            showUploadError(error.message);
+        });
+    }
+    
+    // Handle file upload
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('file');
+        const descInput = document.getElementById('description');
+        const progressBar = document.querySelector('#uploadProgress .progress-bar');
+        const uploadProgress = document.getElementById('uploadProgress');
+        
+        // Validate file
+        if (!fileInput.files || fileInput.files.length === 0) {
+            fileInput.classList.add('is-invalid');
+            return;
+        }
+        
+        fileInput.classList.remove('is-invalid');
+        
+        // Show progress bar
+        uploadProgress.classList.remove('d-none');
+        progressBar.style.width = '0%';
+        
+        // Hide previous messages
+        document.getElementById('uploadSuccess').classList.add('d-none');
+        document.getElementById('uploadError').classList.add('d-none');
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('description', descInput.value);
+        formData.append('csrf_token', csrfToken);
+        
+        // Upload file with progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressBar.textContent = percentComplete + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    // Reset form
+                    document.getElementById('uploadForm').reset();
+                    
+                    // Show success message
+                    showUploadSuccess('File uploaded successfully');
+                    
+                    // Refresh files list
+                    fetchFiles();
+                } else {
+                    showUploadError(response.error || 'Upload failed');
+                }
+            } else {
+                let errorMsg = 'Upload failed';
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    errorMsg = response.error || errorMsg;
+                } catch (e) {}
+                
+                showUploadError(errorMsg);
+            }
+            
+            // Hide progress bar
+            uploadProgress.classList.add('d-none');
+        });
+        
+        xhr.addEventListener('error', function() {
+            showUploadError('Network error occurred');
+            uploadProgress.classList.add('d-none');
+        });
+        
+        xhr.addEventListener('abort', function() {
+            showUploadError('Upload aborted');
+            uploadProgress.classList.add('d-none');
+        });
+        
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+    });
+    
+    // Show upload success message
+    function showUploadSuccess(message) {
+        const successDiv = document.getElementById('uploadSuccess');
+        successDiv.textContent = message;
+        successDiv.classList.remove('d-none');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            successDiv.classList.add('d-none');
+        }, 5000);
+    }
+    
+    // Show upload error message
+    function showUploadError(message) {
+        const errorDiv = document.getElementById('uploadError');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+    }
+    
+    // Load files when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchFiles();
+    });
+</script>
+{% endblock %}

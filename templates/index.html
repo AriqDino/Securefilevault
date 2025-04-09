@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Secure File Storage{% endblock %}
+
+{% block content %}
+<div class="row align-items-center pt-5">
+    <div class="col-md-6">
+        <h1 class="display-4 fw-bold mb-4">Secure File Storage</h1>
+        <p class="lead mb-4">Store your files securely with FileFault. Our platform provides:</p>
+        <ul class="list-group list-group-flush mb-4">
+            <li class="list-group-item bg-transparent"><i class="fas fa-lock text-primary me-2"></i> Secure authentication</li>
+            <li class="list-group-item bg-transparent"><i class="fas fa-shield-alt text-primary me-2"></i> Protected file storage</li>
+            <li class="list-group-item bg-transparent"><i class="fas fa-file-upload text-primary me-2"></i> Easy file uploads</li>
+            <li class="list-group-item bg-transparent"><i class="fas fa-database text-primary me-2"></i> Organized file management</li>
+        </ul>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+            <a href="/login" class="btn btn-primary btn-lg px-4 me-md-2">Login</a>
+            <a href="/login" class="btn btn-outline-secondary btn-lg px-4">Register</a>
+        </div>
+    </div>
+    <div class="col-md-6 d-none d-md-block">
+        <div class="text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather feather-shield">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <foreignObject x="7" y="8" width="10" height="8">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 10px; color: #6c757d;">
+                        <i class="fas fa-file-alt fa-3x"></i>
+                    </div>
+                </foreignObject>
+            </svg>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5 pt-5">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="fas fa-lock fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Secure Authentication</h5>
+                <p class="card-text">User authentication is handled by Firebase, ensuring your credentials are always protected.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="fas fa-file-upload fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Easy File Management</h5>
+                <p class="card-text">Upload, download, and manage your files with an intuitive and user-friendly interface.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="fas fa-shield-alt fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Data Protection</h5>
+                <p class="card-text">Your files are stored securely with strict access controls and encrypted connections.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

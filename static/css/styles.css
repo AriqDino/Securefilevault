@@ -1,0 +1,104 @@
+/* Custom CSS styles */
+
+/* Sticky footer */
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  flex: 1 0 auto;
+}
+
+.footer {
+  flex-shrink: 0;
+}
+
+/* Card hover effect */
+.card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* File list beautification */
+.table {
+  border-collapse: separate;
+  border-spacing: 0 5px;
+}
+
+.table tbody tr {
+  transition: background-color 0.2s;
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Custom button styling */
+.btn-primary {
+  font-weight: 500;
+}
+
+.btn-outline-secondary {
+  font-weight: 500;
+}
+
+/* Form focus styling */
+.form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Animation for progress bar */
+@keyframes progress-bar-stripes {
+  0% { background-position-x: 1rem; }
+}
+
+/* File upload card height */
+@media (min-width: 768px) {
+  .row-cols-md-2 > .col {
+    height: 100%;
+  }
+}
+
+/* Ensure consistent button size with icons */
+.btn i {
+  width: 1rem;
+  text-align: center;
+}
+
+/* Login form styling */
+#loginForm {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Dashboard icons */
+.card-header i {
+  width: 1rem;
+  text-align: center;
+}
+
+/* Custom icon colors */
+.text-primary i {
+  color: var(--bs-primary);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .display-4 {
+    font-size: 2.5rem;
+  }
+  
+  .lead {
+    font-size: 1.1rem;
+  }
+}

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4">
+                    <i class="fas fa-lock me-2"></i>Login or Register
+                </h2>
+                
+                <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+                
+                <div id="loginForm" class="mb-4">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" required>
+                        <div class="invalid-feedback">Please enter a valid email address.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button id="loginButton" class="btn btn-primary btn-lg">Login</button>
+                        <button id="registerButton" class="btn btn-outline-secondary btn-lg">Register</button>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <p>or sign in with</p>
+                    <button id="googleSignIn" class="btn btn-outline-primary">
+                        <i class="fab fa-google me-2"></i>Google
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+    import { 
+        getAuth, 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword,
+        GoogleAuthProvider,
+        signInWithPopup
+    } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+
+    // Get elements
+    const loginForm = document.getElementById('loginForm');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginButton = document.getElementById('loginButton');
+    const registerButton = document.getElementById('registerButton');
+    const googleSignIn = document.getElementById('googleSignIn');
+    const loginError = document.getElementById('loginError');
+
+    // Get Firebase auth
+    const auth = window.firebaseAuth;
+    
+    // Email validation function
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+    
+    // Password validation function
+    function isValidPassword(password) {
+        return password.length >= 6;
+    }
+    
+    // Validate the form
+    function validateForm() {
+        let isValid = true;
+        
+        if (!isValidEmail(emailInput.value)) {
+            emailInput.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            emailInput.classList.remove('is-invalid');
+        }
+        
+        if (!isValidPassword(passwordInput.value)) {
+            passwordInput.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            passwordInput.classList.remove('is-invalid');
+        }
+        
+        return isValid;
+    }
+    
+    // Show error message
+    function showError(message) {
+        loginError.textContent = message;
+        loginError.classList.remove('d-none');
+    }
+    
+    // Hide error message
+    function hideError() {
+        loginError.classList.add('d-none');
+    }
+    
+    // Handle authentication response
+    function handleAuthResponse(userCredential) {
+        // Get the user's ID token
+        return userCredential.user.getIdToken().then(idToken => {
+            // Send the ID token to the server
+            return fetch('/api/verify-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ idToken })
+            });
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to verify token with server');
+            }
+            return response.json();
+        }).then(data => {
+            if (data.success) {
+                // Redirect to dashboard
+                window.location.href = '/dashboard';
+            } else {
+                throw new Error(data.error || 'Authentication failed');
+            }
+        });
+    }
+    
+    // Login with email and password
+    loginButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        hideError();
+        
+        if (validateForm()) {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            signInWithEmailAndPassword(auth, email, password)
+                .then(handleAuthResponse)
+                .catch(error => {
+                    console.error('Login error:', error);
+                    showError(`Login failed: ${error.message}`);
+                });
+        }
+    });
+    
+    // Register with email and password
+    registerButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        hideError();
+        
+        if (validateForm()) {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            createUserWithEmailAndPassword(auth, email, password)
+                .then(handleAuthResponse)
+                .catch(error => {
+                    console.error('Registration error:', error);
+                    showError(`Registration failed: ${error.message}`);
+                });
+        }
+    });
+    
+    // Sign in with Google
+    googleSignIn.addEventListener('click', function(e) {
+        e.preventDefault();
+        hideError();
+        
+        const provider = new GoogleAuthProvider();
+        signInWithPopup(auth, provider)
+            .then(handleAuthResponse)
+            .catch(error => {
+                console.error('Google sign-in error:', error);
+                showError(`Google sign-in failed: ${error.message}`);
+            });
+    });
+    
+    // Input validation on typing
+    emailInput.addEventListener('input', function() {
+        if (isValidEmail(emailInput.value)) {
+            emailInput.classList.remove('is-invalid');
+        }
+    });
+    
+    passwordInput.addEventListener('input', function() {
+        if (isValidPassword(passwordInput.value)) {
+            passwordInput.classList.remove('is-invalid');
+        }
+    });
+</script>
+{% endblock %}
