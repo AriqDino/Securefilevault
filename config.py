@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Database configuration
-SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///files.db")
+SQLALCHEMY_DATABASE_URI = "sqlite:///files.db" # Using local SQLite database for security
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ENGINE_OPTIONS = {
     "pool_recycle": 300,

@@ -29,13 +29,6 @@
                         <button id="registerButton" class="btn btn-outline-secondary btn-lg">Register</button>
                     </div>
                 </div>
-                
-                <div class="text-center">
-                    <p>or sign in with</p>
-                    <button id="googleSignIn" class="btn btn-outline-primary">
-                        <i class="fab fa-google me-2"></i>Google
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -48,9 +41,7 @@
     import { 
         getAuth, 
         signInWithEmailAndPassword, 
-        createUserWithEmailAndPassword,
-        GoogleAuthProvider,
-        signInWithPopup
+        createUserWithEmailAndPassword
     } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
 
     // Get elements
@@ -59,7 +50,6 @@
     const passwordInput = document.getElementById('password');
     const loginButton = document.getElementById('loginButton');
     const registerButton = document.getElementById('registerButton');
-    const googleSignIn = document.getElementById('googleSignIn');
     const loginError = document.getElementById('loginError');
 
     // Get Firebase auth
@@ -169,20 +159,6 @@
                     showError(`Registration failed: ${error.message}`);
                 });
         }
-    });
-    
-    // Sign in with Google
-    googleSignIn.addEventListener('click', function(e) {
-        e.preventDefault();
-        hideError();
-        
-        const provider = new GoogleAuthProvider();
-        signInWithPopup(auth, provider)
-            .then(handleAuthResponse)
-            .catch(error => {
-                console.error('Google sign-in error:', error);
-                showError(`Google sign-in failed: ${error.message}`);
-            });
     });
     
     // Input validation on typing
