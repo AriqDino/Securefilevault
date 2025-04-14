@@ -31,7 +31,7 @@ class VirusTotalScanner:
             "accept": "application/json"
         }
     
-    def scan_file(self, file_path: str, max_retries: int = 2, wait_time: int = 5) -> Tuple[bool, Dict[str, Any]]:
+    def scan_file(self, file_path: str, max_retries: int = 3, wait_time: int = 5) -> Tuple[bool, Dict[str, Any]]:
         """
         Scan a file using VirusTotal API
         
@@ -100,8 +100,8 @@ class VirusTotalScanner:
                     return self._process_analysis_result(analysis_result)
             
             # If max retries reached and analysis not completed
-            logger.warning("file scan successful, no malicious files detected")
-            return True, {"status": "timeout", "message": "Scan Completed, file accepted"}
+            logger.warning("Scan taking too long, consider it suspicious")
+            return False, {"status": "timeout", "message": "Scan taking too long, consider it suspicious"}
             
         except Exception as e:
             logger.exception(f"Error scanning file: {e}")
