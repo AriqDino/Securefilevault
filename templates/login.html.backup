@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4">
+                    <i class="fas fa-shield-alt me-2 text-primary"></i>Account Access
+                </h2>
+
+                <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+
+                <ul class="nav nav-pills mb-4 nav-justified" id="auth-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="login-tab" data-bs-toggle="pill"
+                                data-bs-target="#login-pane" type="button" role="tab"
+                                aria-controls="login-pane" aria-selected="true">Login</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="register-tab" data-bs-toggle="pill"
+                                data-bs-target="#register-pane" type="button" role="tab"
+                                aria-controls="register-pane" aria-selected="false">Register</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="auth-tab-content">
+                    <!-- LOGIN PANE -->
+                    <div class="tab-pane fade show active" id="login-pane" role="tabpanel"
+                         aria-labelledby="login-tab">
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="loginEmail" class="form-label">Email address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                </div>
+                                <div class="invalid-feedback">Please enter a valid email address.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="loginPassword" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="loginPassword" required>
+                                    <button class="btn btn-outline-secondary toggle-password" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                            </div>
+                            <div class="d-grid gap-2 mt-4">
+                                <button id="loginButton" type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- REGISTER PANE -->
+                    <div class="tab-pane fade" id="register-pane" role="tabpanel"
+                         aria-labelledby="register-tab">
+                        <form id="registerForm">
+                            <div class="mb-3">
+                                <label for="registerEmail" class="form-label">Email address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" id="registerEmail" required>
+                                </div>
+                                <div class="invalid-feedback">Please enter a valid email address.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="registerPassword" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="registerPassword" required>
+                                    <button class="btn btn-outline-secondary toggle-password" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label">Confirm Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="confirmPassword" required>
+                                </div>
+                                <div class="invalid-feedback">Passwords do not match.</div>
+                            </div>
+                            <div class="d-grid gap-2 mt-4">
+                                <button id="registerButton" type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-user-plus me-2"></i>Create Account
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+    import {
+        signInWithEmailAndPassword,
+        createUserWithEmailAndPassword
+    } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+
+    // Grab the shared auth instance
+    const auth = window.firebaseAuth;
+
+    // UI elements
+    const loginForm      = document.getElementById('loginForm');
+    const loginEmail     = document.getElementById('loginEmail');
+    const loginPassword  = document.getElementById('loginPassword');
+    const loginButton    = document.getElementById('loginButton');
+    const registerForm   = document.getElementById('registerForm');
+    const registerEmail  = document.getElementById('registerEmail');
+    const registerPassword = document.getElementById('registerPassword');
+    const confirmPassword  = document.getElementById('confirmPassword');
+    const registerButton   = document.getElementById('registerButton');
+    const loginError     = document.getElementById('loginError');
+
+    // Helpers: validation, show/hide errors, parse Firebase codes…
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    function isValidPassword(pw) {
+        return pw.length >= 6;
+    }
+    function showError(msg) {
+        loginError.textContent = msg;
+        loginError.classList.remove('d-none');
+        loginError.classList.add('animate__animated', 'animate__shakeX');
+        setTimeout(() => loginError.classList.remove('animate__shakeX'), 800);
+    }
+    function hideError() {
+        loginError.classList.add('d-none');
+    }
+    function parseFirebaseErrorMessage(code) {
+        const map = {
+            'auth/user-not-found': 'No account found with this email address.',
+            'auth/wrong-password': 'Incorrect password. Please try again.',
+            'auth/invalid-email': 'Invalid email format.',
+            'auth/email-already-in-use': 'Email already in use.',
+            'auth/weak-password': 'Password is too weak.',
+            'auth/network-request-failed': 'Network error. Check your connection.',
+            'auth/too-many-requests': 'Too many attempts. Try later.',
+            'auth/user-disabled': 'Account disabled. Contact support.',
+        };
+        return map[code] || 'Authentication error: ' + code;
+    }
+
+    // After sign‑in or register: get ID token and POST to your Flask endpoint
+    function handleAuthResponse(userCred) {
+        return userCred.user.getIdToken()
+            .then(idToken => fetch('/api/verify-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken })
+            }))
+            .then(res => {
+                if (!res.ok) throw new Error('Server token verification failed');
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) window.location.href = '/dashboard';
+                else throw new Error(data.error || 'Authentication failed');
+            });
+    }
+
+    // Toggle password visibility
+    document.querySelectorAll('.toggle-password').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const inp = btn.previousElementSibling;
+            const icon = btn.querySelector('i');
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                inp.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        });
+    });
+
+    // Login form submit
+    loginForm.addEventListener('submit', e => {
+        e.preventDefault();
+        hideError();
+        let valid = true;
+        if (!isValidEmail(loginEmail.value.trim())) {
+            loginEmail.classList.add('is-invalid'); valid = false;
+        } else loginEmail.classList.remove('is-invalid');
+        if (!isValidPassword(loginPassword.value)) {
+            loginPassword.classList.add('is-invalid'); valid = false;
+        } else loginPassword.classList.remove('is-invalid');
+        if (!valid) return;
+
+        loginButton.disabled = true;
+        loginButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Logging in…';
+
+        signInWithEmailAndPassword(auth, loginEmail.value.trim(), loginPassword.value)
+            .then(handleAuthResponse)
+            .catch(err => {
+                console.error('Login error:', err);
+                showError(parseFirebaseErrorMessage(err.code || err.message));
+                loginButton.disabled = false;
+                loginButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+            });
+    });
+
+    // Register form submit
+    registerForm.addEventListener('submit', e => {
+        e.preventDefault();
+        hideError();
+        let valid = true;
+        if (!isValidEmail(registerEmail.value.trim())) {
+            registerEmail.classList.add('is-invalid'); valid = false;
+        } else registerEmail.classList.remove('is-invalid');
+        if (!isValidPassword(registerPassword.value)) {
+            registerPassword.classList.add('is-invalid'); valid = false;
+        } else registerPassword.classList.remove('is-invalid');
+        if (registerPassword.value !== confirmPassword.value) {
+            confirmPassword.classList.add('is-invalid'); valid = false;
+        } else confirmPassword.classList.remove('is-invalid');
+        if (!valid) return;
+
+        registerButton.disabled = true;
+        registerButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating…';
+
+        createUserWithEmailAndPassword(auth, registerEmail.value.trim(), registerPassword.value)
+            .then(handleAuthResponse)
+            .catch(err => {
+                console.error('Registration error:', err);
+                showError(parseFirebaseErrorMessage(err.code || err.message));
+                registerButton.disabled = false;
+                registerButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+            });
+    });
+</script>
+{% endblock %}
+

@@ -77,7 +77,7 @@ def index():
 
 @app.route('/api/verify-token', methods=['POST'])
 def verify_token():
-    """Verify Firebase ID token and create/update user in database"""
+    """Verify Firebase ID token and optionally create/update user in database"""
     data = request.get_json()
     id_token = data.get('idToken')
     
@@ -90,19 +90,26 @@ def verify_token():
         uid = user_data['uid']
         email = user_data['email']
         
-        # Check if user exists
-        user = User.query.get(uid)
-        
-        if not user:
-            # Create new user
-            user = User(id=uid, email=email)
-            if 'name' in user_data:
-                user.name = user_data['name']
-            db.session.add(user)
-        
-        # Update last login time
-        user.last_login = datetime.datetime.utcnow()
-        db.session.commit()
+        try:
+            # Try to update database but continue even if it fails
+            user = User.query.get(uid)
+            
+            if not user:
+                # Create new user
+                user = User(id=uid, email=email)
+                if 'name' in user_data:
+                    user.name = user_data['name']
+                db.session.add(user)
+            
+            # Update last login time
+            user.last_login = datetime.datetime.utcnow()
+            db.session.commit()
+            
+            user_name = user.name
+        except Exception as db_error:
+            # Log database error but continue with authentication
+            logger.warning(f"Database operation failed but continuing: {str(db_error)}")
+            user_name = user_data.get('name', '')
         
         # Store user data in session
         session['user_id'] = uid
@@ -113,7 +120,7 @@ def verify_token():
             'user': {
                 'uid': uid,
                 'email': email,
-                'name': user.name
+                'name': user_name
             }
         })
     

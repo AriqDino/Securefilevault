@@ -3,30 +3,100 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center mt-5">
     <div class="col-md-6">
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
                 <h2 class="text-center mb-4">
-                    <i class="fas fa-lock me-2"></i>Login or Register
+                    <i class="fas fa-shield-alt me-2 text-primary"></i>Account Access
                 </h2>
-                
+
                 <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
-                
-                <div id="loginForm" class="mb-4">
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email address</label>
-                        <input type="email" class="form-control" id="email" required>
-                        <div class="invalid-feedback">Please enter a valid email address.</div>
+
+                <ul class="nav nav-pills mb-4 nav-justified" id="auth-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="login-tab" data-bs-toggle="pill" data-bs-target="#login-pane" type="button" role="tab" aria-controls="login-pane" aria-selected="true">Login</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="register-tab" data-bs-toggle="pill" data-bs-target="#register-pane" type="button" role="tab" aria-controls="register-pane" aria-selected="false">Register</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="auth-tab-content">
+                    <div class="tab-pane fade show active" id="login-pane" role="tabpanel" aria-labelledby="login-tab">
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="loginEmail" class="form-label">Email address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                </div>
+                                <div class="invalid-feedback">Please enter a valid email address.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="loginPassword" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="loginPassword" required>
+                                    <button class="btn btn-outline-secondary toggle-password" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                            </div>
+                            <div class="d-grid gap-2 mt-4">
+                                <button id="loginButton" type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" required>
-                        <div class="invalid-feedback">Password must be at least 6 characters.</div>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button id="loginButton" class="btn btn-primary btn-lg">Login</button>
-                        <button id="registerButton" class="btn btn-outline-secondary btn-lg">Register</button>
+
+                    <div class="tab-pane fade" id="register-pane" role="tabpanel" aria-labelledby="register-tab">
+                        <form id="registerForm">
+                            <div class="mb-3">
+                                <label for="registerEmail" class="form-label">Email address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" id="registerEmail" required>
+                                </div>
+                                <div class="invalid-feedback">Please enter a valid email address.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="registerPassword" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="registerPassword" required>
+                                    <button class="btn btn-outline-secondary toggle-password" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback" id="registerPasswordFeedback">Password must be at least 6 characters.</div>
+                                <div class="form-text small mt-1">
+                                    <div>Password must contain:</div>
+                                    <ul id="password-criteria-list" class="mb-0 ps-3">
+                                        <li id="length-check">At least 6 characters</li>
+                                        <li id="uppercase-check">At least one uppercase letter (A-Z)</li>
+                                        <li id="lowercase-check">At least one lowercase letter (a-z)</li>
+                                        <li id="number-check">At least one number (0-9)</li>
+                                        <li id="special-check">At least one special character (!@#$%^&*,...)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label">Confirm Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="confirmPassword" required>
+                                </div>
+                                <div class="invalid-feedback">Passwords do not match.</div>
+                            </div>
+                            <div class="d-grid gap-2 mt-4">
+                                <button id="registerButton" type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-user-plus me-2"></i>Create Account
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -44,64 +114,169 @@
         createUserWithEmailAndPassword
     } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
 
-    // Get elements
+    // Get elements - Login
     const loginForm = document.getElementById('loginForm');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
     const loginButton = document.getElementById('loginButton');
+
+    // Get elements - Register
+    const registerForm = document.getElementById('registerForm');
+    const registerEmail = document.getElementById('registerEmail');
+    const registerPassword = document.getElementById('registerPassword');
+    const confirmPassword = document.getElementById('confirmPassword');
     const registerButton = document.getElementById('registerButton');
+
+    // Get error display element
     const loginError = document.getElementById('loginError');
 
     // Get Firebase auth
     const auth = window.firebaseAuth;
-    
+
+    // Password toggle visibility
+    document.querySelectorAll('.toggle-password').forEach(button => {
+        button.addEventListener('click', function() {
+            const passwordInput = this.previousElementSibling;
+            const icon = this.querySelector('i');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    });
+
     // Email validation function
     function isValidEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(email);
     }
-    
+
     // Password validation function
     function isValidPassword(password) {
-        return password.length >= 6;
+        // Firebase password requirements
+        const minLength = password.length >= 6;
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+        
+        return minLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecial;
     }
     
-    // Validate the form
-    function validateForm() {
-        let isValid = true;
+    // Function to check password criteria and update UI feedback
+    function checkPasswordCriteria(password) {
+        const criteriaItems = [
+            { id: 'length-check', regex: /.{6,}/, text: 'At least 6 characters' },
+            { id: 'uppercase-check', regex: /[A-Z]/, text: 'At least one uppercase letter (A-Z)' },
+            { id: 'lowercase-check', regex: /[a-z]/, text: 'At least one lowercase letter (a-z)' },
+            { id: 'number-check', regex: /[0-9]/, text: 'At least one number (0-9)' },
+            { id: 'special-check', regex: /[!@#$%^&*(),.?":{}|<>]/, text: 'At least one special character (!@#$%^&*,...)' }
+        ];
         
-        if (!isValidEmail(emailInput.value)) {
-            emailInput.classList.add('is-invalid');
-            isValid = false;
-        } else {
-            emailInput.classList.remove('is-invalid');
+        // Create criteria list if it doesn't exist
+        if (!document.getElementById('password-criteria-list')) {
+            const criteriaList = document.createElement('ul');
+            criteriaList.id = 'password-criteria-list';
+            criteriaList.className = 'mb-0 ps-3';
+            
+            criteriaItems.forEach(item => {
+                const li = document.createElement('li');
+                li.id = item.id;
+                li.textContent = item.text;
+                criteriaList.appendChild(li);
+            });
+            
+            const passwordFeedback = document.getElementById('registerPasswordFeedback').parentNode;
+            const formText = passwordFeedback.querySelector('.form-text');
+            
+            // Replace existing list with new interactive one
+            formText.innerHTML = '<div>Password must contain:</div>';
+            formText.appendChild(criteriaList);
         }
         
-        if (!isValidPassword(passwordInput.value)) {
-            passwordInput.classList.add('is-invalid');
-            isValid = false;
-        } else {
-            passwordInput.classList.remove('is-invalid');
-        }
+        // Update criteria status
+        criteriaItems.forEach(item => {
+            const element = document.getElementById(item.id);
+            if (element) {
+                if (item.regex.test(password)) {
+                    element.className = 'text-success';
+                    element.innerHTML = `<i class="fas fa-check"></i> ${item.text}`;
+                } else {
+                    element.className = 'text-muted';
+                    element.innerHTML = item.text;
+                }
+            }
+        });
         
-        return isValid;
+        return criteriaItems.every(item => item.regex.test(password));
     }
-    
+
     // Show error message
     function showError(message) {
         loginError.textContent = message;
         loginError.classList.remove('d-none');
+        loginError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Make error more noticeable with animation
+        loginError.classList.add('animate__animated', 'animate__shakeX');
+        setTimeout(() => {
+            loginError.classList.remove('animate__animated', 'animate__shakeX');
+        }, 1000);
     }
-    
+
     // Hide error message
     function hideError() {
         loginError.classList.add('d-none');
     }
-    
+
+    // Parse Firebase error messages
+    function parseFirebaseErrorMessage(errorCode) {
+        switch(errorCode) {
+            case 'auth/user-not-found':
+                return 'No account found with this email address.';
+            case 'auth/wrong-password':
+                return 'Incorrect password. Please try again.';
+            case 'auth/invalid-email':
+                return 'Invalid email format.';
+            case 'auth/email-already-in-use':
+                return 'Email already in use. Please login or use a different email.';
+            case 'auth/weak-password':
+                return 'Password is too weak.  Please ensure it meets the specified criteria.'; //Improved message
+            case 'auth/network-request-failed':
+                return 'Network error. Please check your internet connection.';
+            case 'auth/too-many-requests':
+                return 'Too many failed login attempts. Please try again later.';
+            case 'auth/user-disabled':
+                return 'This account has been disabled. Please contact support.';
+            case 'auth/invalid-credential':
+                return 'Invalid email or password. Please check your credentials and try again.';
+            case 'auth/operation-not-allowed':
+                return 'Email/password sign-in is not enabled. Please contact support.';
+            case 'auth/missing-password':
+                return 'Please enter a password.';
+            case 'auth/password-does-not-meet-requirements':
+                return 'Your password must include uppercase and lowercase letters, numbers, and special characters.'; // More helpful message for firebase error
+            default:
+                return 'Authentication error: ' + errorCode;
+        }
+    }
+
     // Handle authentication response
     function handleAuthResponse(userCredential) {
+        // Make sure we have a valid user object
+        if (!userCredential || !userCredential.user) {
+            throw new Error('User credentials are invalid');
+        }
+        
         // Get the user's ID token
         return userCredential.user.getIdToken().then(idToken => {
+            console.log("Got ID token, sending to server...");
             // Send the ID token to the server
             return fetch('/api/verify-token', {
                 method: 'POST',
@@ -112,10 +287,14 @@
             });
         }).then(response => {
             if (!response.ok) {
-                throw new Error('Failed to verify token with server');
+                console.error("Server response not OK:", response.status);
+                return response.json().then(errData => {
+                    throw new Error(errData.error || 'Failed to verify token with server');
+                });
             }
             return response.json();
         }).then(data => {
+            console.log("Server response:", data);
             if (data.success) {
                 // Redirect to dashboard
                 window.location.href = '/dashboard';
@@ -124,53 +303,152 @@
             }
         });
     }
-    
+
     // Login with email and password
-    loginButton.addEventListener('click', function(e) {
+    loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
         hideError();
-        
-        if (validateForm()) {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            
+
+        const email = loginEmail.value.trim();
+        const password = loginPassword.value;
+
+        let isValid = true;
+
+        if (!isValidEmail(email)) {
+            loginEmail.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            loginEmail.classList.remove('is-invalid');
+        }
+
+        if (!password) {
+            loginPassword.classList.add('is-invalid');
+            showError('Password is required');
+            isValid = false;
+        } else if (!isValidPassword(password)) {
+            loginPassword.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            loginPassword.classList.remove('is-invalid');
+        }
+
+        if (isValid) {
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
+
             signInWithEmailAndPassword(auth, email, password)
                 .then(handleAuthResponse)
                 .catch(error => {
                     console.error('Login error:', error);
-                    showError(`Login failed: ${error.message}`);
+                    showError(parseFirebaseErrorMessage(error.code));
+                    loginButton.disabled = false;
+                    loginButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+
+                    // Add classes to visually indicate error
+                    if (error.code === 'auth/invalid-credential' || 
+                        error.code === 'auth/wrong-password' || 
+                        error.code === 'auth/user-not-found') {
+                        loginEmail.classList.add('is-invalid');
+                        loginPassword.classList.add('is-invalid');
+                    }
                 });
         }
     });
-    
+
     // Register with email and password
-    registerButton.addEventListener('click', function(e) {
+    registerForm.addEventListener('submit', function(e) {
         e.preventDefault();
         hideError();
-        
-        if (validateForm()) {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            
+
+        const email = registerEmail.value;
+        const password = registerPassword.value;
+        const confirmPass = confirmPassword.value;
+
+        let isValid = true;
+
+        if (!isValidEmail(email)) {
+            registerEmail.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            registerEmail.classList.remove('is-invalid');
+        }
+
+        if (!isValidPassword(password)) {
+            registerPassword.classList.add('is-invalid');
+            document.getElementById('registerPasswordFeedback').innerText = 'Password does not meet all requirements.';
+            // Highlight which requirements are not met
+            checkPasswordCriteria(password);
+            isValid = false;
+        } else {
+            registerPassword.classList.remove('is-invalid');
+            registerPassword.classList.add('is-valid');
+            document.getElementById('registerPasswordFeedback').innerText = 'Password meets all requirements!';
+        }
+
+        if (password !== confirmPass) {
+            confirmPassword.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            confirmPassword.classList.remove('is-invalid');
+        }
+
+        if (isValid) {
+            registerButton.disabled = true;
+            registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
+
             createUserWithEmailAndPassword(auth, email, password)
                 .then(handleAuthResponse)
                 .catch(error => {
                     console.error('Registration error:', error);
-                    showError(`Registration failed: ${error.message}`);
+                    showError(parseFirebaseErrorMessage(error.code));
+                    registerButton.disabled = false;
+                    registerButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
                 });
         }
     });
-    
-    // Input validation on typing
-    emailInput.addEventListener('input', function() {
-        if (isValidEmail(emailInput.value)) {
-            emailInput.classList.remove('is-invalid');
+
+    // Input validation on typing - Login form
+    loginEmail.addEventListener('input', function() {
+        if (isValidEmail(loginEmail.value)) {
+            loginEmail.classList.remove('is-invalid');
         }
     });
-    
-    passwordInput.addEventListener('input', function() {
-        if (isValidPassword(passwordInput.value)) {
-            passwordInput.classList.remove('is-invalid');
+
+    loginPassword.addEventListener('input', function() {
+        if (isValidPassword(loginPassword.value)) {
+            loginPassword.classList.remove('is-invalid');
+        }
+    });
+
+    // Input validation on typing - Register form
+    registerEmail.addEventListener('input', function() {
+        if (isValidEmail(registerEmail.value)) {
+            registerEmail.classList.remove('is-invalid');
+        }
+    });
+
+    registerPassword.addEventListener('input', function() {
+        const password = registerPassword.value;
+        const isValid = checkPasswordCriteria(password);
+        
+        if (isValid) {
+            registerPassword.classList.remove('is-invalid');
+            registerPassword.classList.add('is-valid');
+            document.getElementById('registerPasswordFeedback').innerText = 'Password meets all requirements!';
+        } else {
+            registerPassword.classList.remove('is-valid');
+            if (password.length > 0) {
+                registerPassword.classList.add('is-invalid');
+                document.getElementById('registerPasswordFeedback').innerText = 'Password does not meet all requirements.';
+            } else {
+                registerPassword.classList.remove('is-invalid');
+            }
+        }
+    });
+
+    confirmPassword.addEventListener('input', function() {
+        if (confirmPassword.value === registerPassword.value) {
+            confirmPassword.classList.remove('is-invalid');
         }
     });
 </script>
