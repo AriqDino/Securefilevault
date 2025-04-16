@@ -1,4 +1,3 @@
-
 email-validator
 flask-login
 flask
@@ -9,3 +8,4 @@ requests
 firebase-admin
 sqlalchemy
 werkzeug
+python-dotenv
