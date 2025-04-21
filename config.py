@@ -10,11 +10,14 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Database configuration
-SQLALCHEMY_DATABASE_URI = "sqlite:///files.db"  # Local SQLite database
+SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///files.db")
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ENGINE_OPTIONS = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
+    "pool_recycle": 300,  # Recycle connections every 5 minutes
+    "pool_pre_ping": True,  # Test connection before using
+    "pool_size": 10,  # Maximum number of connections to keep
+    "max_overflow": 20,  # Maximum number of connections to create beyond pool_size
+    "pool_timeout": 30,  # Timeout for getting a connection from the pool
 }
 
 # Firebase configuration
@@ -35,3 +38,9 @@ MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload size
 # Security configuration
 SESSION_SECRET = os.environ.get("SESSION_SECRET")
 CSRF_TOKEN_SECRET = os.environ.get("CSRF_TOKEN_SECRET")
+
+# Session configuration
+PERMANENT_SESSION_LIFETIME = 1800  # 30 menit dalam detik
+SESSION_COOKIE_SECURE = True  # Hanya kirim cookie melalui HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Tidak dapat diakses melalui JavaScript
+SESSION_COOKIE_SAMESITE = 'Lax'  # Melindungi dari CSRF

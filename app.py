@@ -9,6 +9,10 @@ import config
 import uuid
 import datetime
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
